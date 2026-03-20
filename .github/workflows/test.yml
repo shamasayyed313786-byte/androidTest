@@ -1,0 +1,19 @@
+
+name: CI
+
+
+on:
+
+   workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      
+
+      - name: Run
+        run: sudo apt update -y && sudo apt install neofetch -y && neofetch
+
+      
