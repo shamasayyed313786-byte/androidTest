@@ -8,7 +8,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    # 1. Manually clone the target public repository into the working environment
+    # 1. Manually clone the target remote repository directly into the current directory
     - name: Clone Remote Repository
       run: |
         git clone https://github.com/joshuabscott/MauiApp1HelloWorld.git .
@@ -30,19 +30,21 @@ jobs:
     - name: Install MAUI Android Workload
       run: dotnet workload install maui-android --ignore-failed-sources
 
-    # 5. Restore dependencies
+    # 5. Restore dependencies using the root Solution target
     - name: Restore Dependencies
-      run: dotnet restore MauiApp1HelloWorld/MauiApp1HelloWorld.csproj
+      run: dotnet restore MauiApp1HelloWorld.sln
 
-    # 6. Build and Publish into an Unsigned Release APK
+    # 6. Build and Publish the app into an APK
     - name: Build Unsigned Android APK
       run: |
-        dotnet publish MauiApp1HelloWorld/MauiApp1HelloWorld.csproj -c Release -f net8.0-android /p:AndroidPackageFormats=apk /p:AndroidKeyStore=false
+        dotnet publish MauiApp1HelloWorld.csproj -c Release -f net8.0-android /p:AndroidPackageFormats=apk /p:AndroidKeyStore=false
 
-    # 7. Collect and upload the generated APK
+    # 7. Collect and upload any generated APK artifacts
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: maui-android-apk
-        path: MauiApp1HelloWorld/bin/Release/net8.0-android/publish/*.apk
-        
+        path: |
+          bin/Release/net8.0-android/publish/*.apk
+          bin/Release/net8.0-android/*.apk
+          
