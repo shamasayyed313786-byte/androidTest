@@ -1,46 +1,39 @@
 name: Build Native Termux Executable Binary
 
 on:
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build-android-bin:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Checkout the workspace containing your main.rs file
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. Install the stable Rust toolchain
     - name: Setup Rust Toolchain
       uses: dtolnay/rust-toolchain@stable
 
-    # 3. Add the 64-bit Android compilation target
     - name: Add Android Target Architecture
       run: rustup target add aarch64-linux-android
 
-    # 4. Install the Android NDK (Required for the linker toolchain)
     - name: Setup Android NDK
       uses: nttld/setup-ndk@v1
       with:
-        ndk-version: r26b
+        ndk-version: r27b # Matches the NDK 27 version found in your build runner
 
-    # 5. Compile the raw main.rs file directly with static linking flags
     - name: Compile Standalone Executable
       run: |
-        # Configure rustc to link standard libraries statically and drop shared object dependencies
         rustc main.rs \
           --target aarch64-linux-android \
-          -C linker=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang \
+          -C linker=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang \
           -C target-feature=+crt-static \
-          -C link-arg=-nostartfiles \
           -O \
           -o termux-native-bin
 
-    # 6. Upload the finished standalone binary executable as an Artifact
     - name: Upload Native Binary Artifact
       uses: actions/upload-artifact@v4
       with:
         name: termux-executable
         path: termux-native-bin
+        
