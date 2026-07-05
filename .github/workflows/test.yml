@@ -1,59 +1,46 @@
-name: Generate and Build Fresh Signed MAUI APK
+name: Build Native Termux Executable Binary
 
 on:
-  workflow_dispatch: # Trigger manually from the Actions tab
+  workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
-  build-and-sign:
-    runs-on: windows-latest
+  build-android-bin:
+    runs-on: ubuntu-latest
 
     steps:
-    # 1. Initialize a clean project workspace directory (no repository cloning required)
-    - name: Initialize Workspace
-      run: mkdir clean-app
+    # 1. Checkout the workspace containing your main.rs file
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-    # 2. Setup Java JDK for Android Toolchains
-    - name: Setup Java JDK
-      uses: actions/setup-java@v4
+    # 2. Install the stable Rust toolchain
+    - name: Setup Rust Toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    # 3. Add the 64-bit Android compilation target
+    - name: Add Android Target Architecture
+      run: rustup target add aarch64-linux-android
+
+    # 4. Install the Android NDK (Required for the linker toolchain)
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
       with:
-        distribution: 'microsoft'
-        java-version: '17'
+        ndk-version: r26b
 
-    # 3. Setup modern .NET SDK
-    - name: Setup .NET SDK
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.x'
-
-    # 4. Install the required .NET MAUI Android workload engine
-    - name: Install MAUI Android Workload
-      run: dotnet workload install maui-android --ignore-failed-sources
-
-    # 5. Generate a brand new, clean default .NET MAUI application
-    - name: Generate Fresh MAUI Project
+    # 5. Compile the raw main.rs file directly with static linking flags
+    - name: Compile Standalone Executable
       run: |
-        dotnet new maui -n FreshMauiApp -o clean-app
+        # Configure rustc to link standard libraries statically and drop shared object dependencies
+        rustc main.rs \
+          --target aarch64-linux-android \
+          -C linker=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang \
+          -C target-feature=+crt-static \
+          -C link-arg=-nostartfiles \
+          -O \
+          -o termux-native-bin
 
-    # 6. Generate a temporary, self-contained secure Keystore File to sign the App
-    - name: Generate Local Release Keystore Profile
-      run: |
-        keytool -genkeypair -v -keystore clean-app/release.keystore -alias appalias -keyalg RSA -keysize 2048 -validity 10000 -storepass "SecurePassword123" -keypass "SecurePassword123" -dname "CN=FreshMaui, OU=Development, O=SelfSigned, L=City, S=State, C=US"
-
-    # 7. Restore new dependencies safely
-    - name: Restore Project Dependencies
-      run: dotnet restore clean-app/FreshMauiApp.csproj
-
-    # 8. Compile, Publish, and fully sign the default Android APK file
-    - name: Publish & Sign Android APK
-      run: |
-        dotnet publish clean-app/FreshMauiApp.csproj -c Release -f net8.0-android /p:AndroidPackageFormats=apk /p:AndroidKeyStore=true /p:AndroidSigningKeyStore=release.keystore /p:AndroidSigningStorePass="SecurePassword123" /p:AndroidSigningKeyAlias=appalias /p:AndroidSigningKeyPass="SecurePassword123"
-
-    # 9. Harvest the signed APK file and save it as a downloadable artifact
-    - name: Upload Fully Signed APK Artifact
+    # 6. Upload the finished standalone binary executable as an Artifact
+    - name: Upload Native Binary Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: completely-signed-default-maui-apk
-        path: |
-          clean-app/bin/Release/net8.0-android/publish/*-Signed.apk
-          clean-app/bin/Release/net8.0-android/*-Signed.apk
-          
+        name: termux-executable
+        path: termux-native-bin
