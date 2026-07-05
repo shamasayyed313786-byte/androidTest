@@ -1,45 +1,59 @@
-name: Build MAUI Android APK Manually
+name: Generate and Build Fresh Signed MAUI APK
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Trigger manually from the Actions tab
 
 jobs:
-  build-android:
+  build-and-sign:
     runs-on: windows-latest
 
     steps:
-    - name: Clone Remote Repository
-      run: |
-        git clone https://github.com/joshuabscott/MauiApp1HelloWorld.git .
+    # 1. Initialize a clean project workspace directory (no repository cloning required)
+    - name: Initialize Workspace
+      run: mkdir clean-app
 
+    # 2. Setup Java JDK for Android Toolchains
     - name: Setup Java JDK
       uses: actions/setup-java@v4
       with:
         distribution: 'microsoft'
         java-version: '17'
 
+    # 3. Setup modern .NET SDK
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.x'
 
+    # 4. Install the required .NET MAUI Android workload engine
     - name: Install MAUI Android Workload
       run: dotnet workload install maui-android --ignore-failed-sources
 
-    # ADDED /p:CheckEolWorkloads=false HERE
-    - name: Restore Dependencies
-      run: dotnet restore MauiApp1HelloWorld.sln /p:CheckEolWorkloads=false
-
-    # ADDED /p:CheckEolWorkloads=false HERE
-    - name: Build Unsigned Android APK
+    # 5. Generate a brand new, clean default .NET MAUI application
+    - name: Generate Fresh MAUI Project
       run: |
-        dotnet publish MauiApp1HelloWorld.csproj -c Release -f net8.0-android /p:AndroidPackageFormats=apk /p:AndroidKeyStore=false /p:CheckEolWorkloads=false
+        dotnet new maui -n FreshMauiApp -o clean-app
 
-    - name: Upload APK Artifact
+    # 6. Generate a temporary, self-contained secure Keystore File to sign the App
+    - name: Generate Local Release Keystore Profile
+      run: |
+        keytool -genkeypair -v -keystore clean-app/release.keystore -alias appalias -keyalg RSA -keysize 2048 -validity 10000 -storepass "SecurePassword123" -keypass "SecurePassword123" -dname "CN=FreshMaui, OU=Development, O=SelfSigned, L=City, S=State, C=US"
+
+    # 7. Restore new dependencies safely
+    - name: Restore Project Dependencies
+      run: dotnet restore clean-app/FreshMauiApp.csproj
+
+    # 8. Compile, Publish, and fully sign the default Android APK file
+    - name: Publish & Sign Android APK
+      run: |
+        dotnet publish clean-app/FreshMauiApp.csproj -c Release -f net8.0-android /p:AndroidPackageFormats=apk /p:AndroidKeyStore=true /p:AndroidSigningKeyStore=release.keystore /p:AndroidSigningStorePass="SecurePassword123" /p:AndroidSigningKeyAlias=appalias /p:AndroidSigningKeyPass="SecurePassword123"
+
+    # 9. Harvest the signed APK file and save it as a downloadable artifact
+    - name: Upload Fully Signed APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: maui-android-apk
+        name: completely-signed-default-maui-apk
         path: |
-          bin/Release/net8.0-android/publish/*.apk
-          bin/Release/net8.0-android/*.apk
+          clean-app/bin/Release/net8.0-android/publish/*-Signed.apk
+          clean-app/bin/Release/net8.0-android/*-Signed.apk
           
