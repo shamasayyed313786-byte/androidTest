@@ -1,45 +1,40 @@
 name: Build MAUI Android APK Manually
 
 on:
-  workflow_dispatch: # Trigger manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build-android:
     runs-on: windows-latest
 
     steps:
-    # 1. Manually clone the target remote repository directly into the current directory
     - name: Clone Remote Repository
       run: |
         git clone https://github.com/joshuabscott/MauiApp1HelloWorld.git .
 
-    # 2. Setup the Java Development Kit
     - name: Setup Java JDK
       uses: actions/setup-java@v4
       with:
         distribution: 'microsoft'
         java-version: '17'
 
-    # 3. Setup .NET SDK
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.x'
 
-    # 4. Install the .NET MAUI Android Workload
     - name: Install MAUI Android Workload
       run: dotnet workload install maui-android --ignore-failed-sources
 
-    # 5. Restore dependencies using the root Solution target
+    # ADDED /p:CheckEolWorkloads=false HERE
     - name: Restore Dependencies
-      run: dotnet restore MauiApp1HelloWorld.sln
+      run: dotnet restore MauiApp1HelloWorld.sln /p:CheckEolWorkloads=false
 
-    # 6. Build and Publish the app into an APK
+    # ADDED /p:CheckEolWorkloads=false HERE
     - name: Build Unsigned Android APK
       run: |
-        dotnet publish MauiApp1HelloWorld.csproj -c Release -f net8.0-android /p:AndroidPackageFormats=apk /p:AndroidKeyStore=false
+        dotnet publish MauiApp1HelloWorld.csproj -c Release -f net8.0-android /p:AndroidPackageFormats=apk /p:AndroidKeyStore=false /p:CheckEolWorkloads=false
 
-    # 7. Collect and upload any generated APK artifacts
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
