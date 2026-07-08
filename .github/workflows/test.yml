@@ -7,21 +7,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # Install essential build tools and the specific libtinfo6 for compatibility
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6
-          # Create a symlink to satisfy older scripts looking for libtinfo.so.5
+          sudo apt-get install -y libncurses5 libncursesw5 libtinfo6
           sudo ln -s /usr/lib/x86_64-linux-gnu/libtinfo.so.6 /usr/lib/x86_64-linux-gnu/libtinfo.so.5
 
       - name: Build with Buildozer
-        uses: digreatbrian/buildozer-action@v2
+        uses: ArtemSBulgakov/buildozer-action@v1.2.0
         with:
-          python-version: 3.9
-          buildozer-cmd: buildozer -v android debug
+          command: buildozer android debug
+          buildozer_version: stable
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
